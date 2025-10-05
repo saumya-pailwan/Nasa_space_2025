@@ -1,11 +1,13 @@
 // src/components/TestScene.tsx
 import React, { useRef, useState } from "react";
+import { useNavigate } from 'react-router-dom';
 import { Canvas, useLoader } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import Asteroid2 from "./Asteroid2";
 import type { Asteroid2Ref } from "./Asteroid2";
 import Missile2 from "./Missile2";
+import GlassButton from "../ui/glass-button";
 
 const EARTH_MAP_URL = "https://threejs.org/examples/textures/land_ocean_ice_cloud_2048.jpg";
 
@@ -34,6 +36,7 @@ function Earth({ radius }: { radius: number }) {
 
 export function TestScene() {
   const EARTH_RADIUS = 0.1;
+  const nav = useNavigate();
   
   const asteroidRef = useRef<Asteroid2Ref>(null);
   const [asteroidPosition, setAsteroidPosition] = useState<[number, number, number]>([-4, 2, -3]);
@@ -224,23 +227,13 @@ export function TestScene() {
                 }}
                 placeholder="Enter angle"
               />
-              <button
+              <GlassButton
                 onClick={handleLaunch}
                 disabled={!simulationStarted || launchMissile}
-                style={{
-                  padding: "12px 24px",
-                  fontSize: "16px",
-                  fontWeight: "600",
-                  background: !simulationStarted || launchMissile ? "#555" : "#00aa00",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "8px",
-                  cursor: !simulationStarted || launchMissile ? "not-allowed" : "pointer",
-                  whiteSpace: "nowrap",
-                }}
+                color={!simulationStarted || launchMissile ? "#555" : "#00aa00"}
               >
                 {launchMissile ? "In Flight..." : "Launch"}
-              </button>
+              </GlassButton>
             </div>
             <div style={{
               fontSize: "12px",
@@ -333,24 +326,30 @@ export function TestScene() {
         </div>
 
         {/* Start/Reset Button */}
-        <button
-          onClick={simulationStarted ? handleReset : handleStart}
-          style={{
-            position: "absolute",
-            top: "10px",
-            right: "10px",
-            padding: "8px 16px",
-            fontSize: "14px",
-            fontWeight: "600",
-            background: simulationStarted ? "#aa0000" : "#00aa00",
-            color: "#fff",
-            border: "none",
-            borderRadius: "6px",
-            cursor: "pointer",
-          }}
-        >
-          {simulationStarted ? "Reset" : "Start"}
-        </button>
+        <div
+            style={{
+                position: "absolute",
+                top: "10px",
+                right: "10px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+            }}
+            >
+            <GlassButton
+                onClick={simulationStarted ? handleReset : handleStart}
+                color={simulationStarted ? "#aa0000" : "#00aa00"}
+            >
+                {simulationStarted ? "Reset" : "Start"}
+            </GlassButton>
+
+            <GlassButton
+                onClick={() => nav('/comparison')}
+                color="#0066cc"
+            >
+                Go to Comparison
+            </GlassButton>
+            </div>
 
         {/* Outcome Display */}
         {outcome && (
