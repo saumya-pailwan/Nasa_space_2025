@@ -100,7 +100,8 @@ export function Missile({
         // Impact point for FX
         const impact: Vec3 = [pos.current.x, pos.current.y, pos.current.z];
 
-        const mass = Number(asteroidMassKg ?? 0);
+        // const mass = Number(asteroidMassKg ?? 0);
+        const mass = 4500;
         const approachDir = toTarget.lengthSq() > 0 ? toTarget.clone().normalize() : vel.current.clone().normalize();
 
         if (mass > 3000) {
@@ -111,7 +112,7 @@ export function Missile({
           // Build a lateral rotation axis ⟂ to approach direction for asteroid to rotate about
           const up = new THREE.Vector3(0, 1, 0);
           let axis = new THREE.Vector3().crossVectors(approachDir, up);
-          if (axis.lengthSq() < 1e-8) axis.set(1, 0, 0);
+          if (axis.lengthSq() > 1e-8) axis.set(1, 0, 0);
           else axis.normalize();
 
           const angleDeg = Number(rocket?.angleDeg ?? 0);

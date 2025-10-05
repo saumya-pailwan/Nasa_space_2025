@@ -78,7 +78,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   },
 
   // Mass (you can wire this to a UI slider if you want)
-  asteroidMassKg: 2500,
+  asteroidMassKg: 4500,
   setAsteroidMassKg: (m) => set({ asteroidMassKg: m }),
 
   // Deflection pipe from Missile → Asteroid (heavy case)
