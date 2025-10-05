@@ -11,13 +11,20 @@ import { Asteroid } from "./Asteroid";
  * We rotate that group so BOTH Earth and the starfield move together.
  * (Earth still has its own axial spin inside its component.)
  */
+
+  const EARTH_SCALE = 0.1;
+  const EARTH_RADIUS = 1 * EARTH_SCALE;
+  const MIN_D = Math.max(0.3, EARTH_RADIUS * 1.15); // let camera get very close
+  const MAX_D = 12; // zoom-out limit (adjust to taste)
+
+
 function RotatingGroup() {
   const groupRef = useRef<THREE.Group>(null!);
 
   // Global rotation speed (radians/sec). Tweak as you like.
   const GLOBAL_SPIN = 0.03;
-
-  const EARTH_SCALE = 0.2;
+  
+  
 
   useFrame((_state, delta) => {
     groupRef.current.rotation.y += GLOBAL_SPIN * delta;
@@ -49,6 +56,8 @@ export function Scene() {
           width: "100vw",
           height: "100vh",
           display: "block",
+          zIndex: 0,        // <-- keep canvas underneath overlays
+
         }}
         camera={{ position: [0, 0, 3.2], fov: 45, near: 0.1, far: 1000 }}
         gl={{ antialias: true, alpha: false }}   // solid background
@@ -68,8 +77,9 @@ export function Scene() {
         enableDamping
         dampingFactor={0.08}
         rotateSpeed={0.6}
-        minDistance={2.5}
-        maxDistance={12}
+        minDistance={MIN_D}   // ↓ closer than before
+        maxDistance={MAX_D}
+      
       />
 
 

@@ -16,4 +16,93 @@ html, body, #root {
   
 
 
+  /* === Bottom Panel === */
+:root {
+  --bp-header-h: 38px;
+  --bp-open-h: 16.667vh; /* ~1/6 screen */
+  --bp-bg: rgba(12, 12, 12, 0.92);
+  --bp-border: #222;
+  --bp-text: #eaeaea;
+  --bp-muted: #9aa0a6;
+  --bp-accent: #ffd54a;
+}
+
+.bp-root {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;        /* definitely above canvas *//* above the canvas */
+  color: var(--bp-text);
+  background: var(--bp-bg);
+  border-top: 1px solid var(--bp-border);
+  backdrop-filter: blur(4px);
+  transition: height 220ms ease, transform 220ms ease, box-shadow 220ms ease;
+  box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.25);
+  /* prevent canvas mouse events when interacting inside the panel */
+  pointer-events: auto;
+}
+
+.bp-open {
+  height: var(--bp-open-h);
+}
+
+.bp-closed {
+  height: var(--bp-header-h);
+}
+
+.bp-header {
+  height: var(--bp-header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--bp-border);
+  user-select: none;
+}
+
+.bp-title {
+  font-size: 14px;
+  letter-spacing: 0.3px;
+  color: var(--bp-muted);
+}
+
+.bp-toggle {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--bp-border);
+  background: #111;
+  color: var(--bp-text);
+  cursor: pointer;
+}
+
+.bp-toggle:hover {
+  border-color: #333;
+  transform: translateY(-1px);
+}
+
+.bp-body {
+  height: calc(100% - var(--bp-header-h));
+  overflow: auto;
+  padding: 10px 12px;
+}
+
+.bp-placeholder {
+  color: var(--bp-muted);
+  font-size: 13px;
+}
+
+/* simple demo buttons */
+.bp-btn {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--bp-border);
+  background: #151515;
+  color: var(--bp-text);
+  cursor: pointer;
+}
+.bp-btn:hover { border-color: #333; }
+
+
 

@@ -25,7 +25,7 @@ export function Earth() {
   });
 
   return (
-    <group ref={groupRef} scale={0.4}>
+    <group ref={groupRef}>
       {/* main sphere */}
       <mesh>
         <sphereGeometry args={[1, 64, 64]} />
