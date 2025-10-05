@@ -41,22 +41,6 @@ export default function Home() {
           zIndex: 1000,
           gap: 45,
       }}>
-          {/* Go to Mission */}
-          <button
-            onClick={() => navigate("/impact")}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 10,
-              border: "1px solid #333",
-              background: "#151515",
-              color: "#eaeaea",
-              cursor: "pointer",
-              height: 40
-            }}
-          >
-            Go to Mission Screen
-          </button>
-
           {/* Control group helper style */}
           {/* Each control: label row, slider, number input */}
           <div style={{ display: "grid", gap: 6, width: 240 }}>
@@ -182,6 +166,22 @@ export default function Home() {
               }}
             />
           </div>
+
+          {/* Go to Mission */}
+          <button
+            onClick={() => navigate("/impact")}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 10,
+              border: "1px solid #333",
+              background: "#151515",
+              color: "#eaeaea",
+              cursor: "pointer",
+              height: 40
+            }}
+          >
+            Go to Mission Screen
+          </button>
         </div>
       </BottomPanel>
     </>

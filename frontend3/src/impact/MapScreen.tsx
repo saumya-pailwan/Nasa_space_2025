@@ -39,7 +39,7 @@ export default function MapScreen() {
     style={{
       position: "fixed",
       right: 12,
-      bottom: 20,               // or use top: 12 if you want it at the top
+      bottom: 35,               // or use top: 12 if you want it at the top
       zIndex: 100000,             // guaranteed above Cesium + anything else
       padding: "10px 14px",
       marginBottom: '100px', // slightly more padding bottom for better touch

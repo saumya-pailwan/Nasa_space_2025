@@ -78,7 +78,7 @@ export default function Page2() {
       setAsteroid(enhancedAsteroid);
     } catch (err) {
       console.error('Failed to fetch asteroid data:', err);
-      setError('Failed to load asteroid data. Using cached values.');
+      setError('Using cached values.');
       // Keep the mock data displayed on error
     } finally {
       setLoading(false);
