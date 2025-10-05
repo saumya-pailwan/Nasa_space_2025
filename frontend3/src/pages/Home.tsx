@@ -13,7 +13,7 @@ export default function Home() {
       <BottomPanel open={open} onToggle={() => setOpen((v) => !v)} title="Simulation Panel">
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <button
-            onClick={() => navigate("/mission")}
+            onClick={() => navigate("/impact")}
             style={{
               padding: "8px 12px",
               borderRadius: 10,

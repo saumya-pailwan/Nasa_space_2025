@@ -3,6 +3,10 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import { BrowserRouter } from "react-router-dom";
 import App from './App.tsx'
+import 'cesium/Build/Cesium/Widgets/widgets.css';
+
+
+
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -12,11 +12,13 @@
   "dependencies": {
     "@react-three/drei": "^10.7.6",
     "@react-three/fiber": "^9.3.0",
+    "cesium": "^1.134.0",
     "leva": "^0.10.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-router-dom": "^7.9.3",
     "three": "^0.180.0",
+    "vite-plugin-cesium": "^1.2.23",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
