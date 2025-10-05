@@ -26,7 +26,7 @@
     display: inline-grid;
     place-items: center;
     gap: 0;
-    padding: 14px 20px;
+    padding: 16px 20px;
     border-radius: var(--glass-radius);
     border: 1px solid hsl(0 0% 100% / var(--glass-border));
     background:
@@ -61,7 +61,7 @@
 /* Active states */
   .glass-btn:hover {
     box-shadow: 0 14px 34px rgba(0,0,0,0.28), 0 4px 10px rgba(0,0,0,0.18), var(--glass-inset);
-    transform: translateY(-1px);
+    transform: translateY(-2px);
   }
   .glass-btn:hover::after {
     opacity: 1;
