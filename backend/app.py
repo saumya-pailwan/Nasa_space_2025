@@ -618,27 +618,88 @@ def damage():
       &velocity_km_s=...         (if omitted, uses NeoWs approach speed or 20 km/s)
     Returns the damage radii (light/moderate/severe), yield, crater estimate, with inputs echoed.
     """
+    print("\n[DAMAGE ENDPOINT] Request received")
+    print("[DAMAGE ENDPOINT] Query params:", dict(request.args))
+    
     target = request.args.get("target")
     if not target:
+        print("[DAMAGE ENDPOINT] Error: Missing target parameter")
         return jsonify({"error": "Missing 'target'"}), 400
+    print(f"[DAMAGE ENDPOINT] Target: {target}")
 
     mass_override = request.args.get("mass_kg", type=float)
     vel_km_s_override = request.args.get("velocity_km_s", type=float)
     api_key = request.args.get("api_key", default=NASA_API_KEY)
+    print("[DAMAGE ENDPOINT] Overrides:", {
+        "mass_kg": mass_override,
+        "velocity_km_s": vel_km_s_override,
+        "using_demo_key": api_key == "DEMO_KEY"
+    })
+
+    c_light = request.args.get("c_light_km", type=float)
+    c_mod   = request.args.get("c_mod_km", type=float)
+    c_sev   = request.args.get("c_sev_km", type=float)
+    c_crtr  = request.args.get("crater_coeff_km", type=float)
+    print("[DAMAGE ENDPOINT] Custom constants:", {
+        "c_light_km": c_light,
+        "c_mod_km": c_mod,
+        "c_sev_km": c_sev,
+        "crater_coeff_km": c_crtr
+    })
 
     try:
+        print("\n[DAMAGE ENDPOINT] Building impact profile...")
         profile = build_impact_profile(target, vel_km_s_override, api_key)
+        print("[DAMAGE ENDPOINT] Impact profile:", {
+            "name": profile.get("name"),
+            "diameter_km": profile.get("diameter_km"),
+            "velocity_km_s": profile.get("velocity_km_s"),
+            "mass_kg": profile.get("mass_kg")
+        })
+
         m = mass_override if (mass_override and mass_override > 0) else float(profile["physical"]["mass_kg"])
         v_km_s = float(profile["impact"]["velocity_km_s"])
         v_m_s = v_km_s * 1000.0
+        print("[DAMAGE ENDPOINT] Using values:", {
+            "mass_kg": m,
+            "velocity_km_s": v_km_s
+        })
 
-        dmg = meteor_damage_approx(mass_kg=m, velocity_m_s=v_m_s)
+        damage_consts = (
+            (c_light if c_light else 16.0),
+            (c_mod   if c_mod   else 6.0),
+            (c_sev   if c_sev   else 2.2),
+        )
+        crater_coeff = c_crtr if c_crtr else 0.405
+        print("[DAMAGE ENDPOINT] Using constants:", {
+            "damage_constants_km": damage_consts,
+            "crater_coeff_km": crater_coeff
+        })
 
-        return jsonify({
+        print("\n[DAMAGE ENDPOINT] Calculating damage radii...")
+        dmg = meteor_damage_approx(
+            mass_kg=m,
+            velocity_m_s=v_m_s,
+            damage_constants_km=damage_consts,
+            crater_coeff_km=crater_coeff
+        )
+
+        response_data = {
             "target": target,
-            "inputs": {"mass_kg": m, "velocity_km_s": v_km_s},
+            "inputs": {
+              "mass_kg": m,
+              "velocity_km_s": v_km_s
+            },
+            "constants_km": {
+              "light": damage_consts[0],
+              "moderate": damage_consts[1],
+              "severe": damage_consts[2],
+              "crater_coeff": crater_coeff
+            },
             "results": dmg
-        }), 200
+        }
+        print("\n[DAMAGE ENDPOINT] Success! Returning:", response_data)
+        return jsonify(response_data), 200
 
     except requests.HTTPError as e:
         return jsonify({"error": "Upstream API error", "detail": str(e)}), 502

@@ -31,10 +31,10 @@ export default function IntroA() {
 
       <div className="landing-content">
         <div className="landing-card">
-          <h1 className="landing-title">Welcome to Singularity</h1>
+          <h1 className="landing-title">Welcome to NEOlytics</h1>
           <p className="landing-subtitle">Visualize, understand, and prepare for space threats.</p>
           <GlassButton wide className="landing-button" onClick={() => nav('/screen1/page2')}>
-            <span>Continue</span>
+            <span>Simulate</span>
           </GlassButton>
         </div>
       </div>

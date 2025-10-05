@@ -6,6 +6,8 @@ import Mission from "./pages/Mission"; // your rocket-hits-asteroid screen
 import Page1 from "./screen1/Page1";
 import Page2 from "./screen1/Page2";
 import { Navigate } from "react-router-dom";
+import MissileChooser from "./pages/MissileChooser";
+import TestScene from "./components/TestScene"
 
 // NEW: Cesium module entry
 import ImpactMap from "./impact/MapScreen";
@@ -26,7 +28,9 @@ export default function App() {
 
       {/* Existing modules */}
       <Route path="/impact" element={<ImpactMap />} />
+      <Route path="/missile-chooser" element={<MissileChooser />} />
       <Route path="/mission" element={<Mission />} />
+      <Route path="/TestScene" element={<TestScene />} />
 
       {/* Fallback */}
       <Route path="*" element={<div style={{ padding: 24 }}>Not found</div>} />

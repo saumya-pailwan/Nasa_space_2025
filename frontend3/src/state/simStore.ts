@@ -1,5 +1,6 @@
 // src/state/simStore.ts
 import { create } from "zustand";
+import type { ImpactResponse } from "../api";
 
 export type RocketParams = { speed: number; angleDeg: number };
 
@@ -18,7 +19,11 @@ export type SimState = {
   rocket: RocketParams;
   setRocket: (p: Partial<RocketParams>) => void;
 
-  // Asteroid
+  // Asteroid - backend data
+  selectedAsteroidData: ImpactResponse | null;
+  setSelectedAsteroidData: (data: ImpactResponse | null) => void;
+
+  // Asteroid - simulation state
   asteroidPos: Vec3;
   setAsteroidPos: (p: Vec3) => void;
   asteroidAlive: boolean;
@@ -27,6 +32,12 @@ export type SimState = {
 
   asteroidMassKg: number;
   setAsteroidMassKg: (m: number) => void;
+
+  asteroidDiameterKm: number | null;
+  setAsteroidDiameterKm: (d: number | null) => void;
+
+  asteroidVelocityKmS: number | null;
+  setAsteroidVelocityKmS: (v: number | null) => void;
 
   // Heavy-impact deflection request from Missile → handled by Asteroid
   asteroidDeflectRotate: null | { angleDeg: number; axis?: Vec3 };
@@ -39,6 +50,7 @@ export type SimState = {
 };
 
 const DEFAULT_ASTEROID_POS: Vec3 = [2.8, 0.8, -3.2];
+const DEFAULT_ASTEROID_MASS_KG = 4500;
 
 export const useSimStore = create<SimState>((set, get) => ({
   // Run/scene
@@ -62,24 +74,46 @@ export const useSimStore = create<SimState>((set, get) => ({
   setRocket: (p) =>
     set((s) => ({ rocket: { ...s.rocket, ...p } })),
 
-  // Asteroid basics
+  // Backend asteroid data
+  selectedAsteroidData: null,
+  setSelectedAsteroidData: (data) => {
+    set({ selectedAsteroidData: data });
+    // Auto-populate mass, diameter, velocity from backend data when available
+    if (data) {
+      if (data.mass_kg !== undefined) {
+        set({ asteroidMassKg: data.mass_kg });
+      }
+      if (data.diameter_km !== undefined) {
+        set({ asteroidDiameterKm: data.diameter_km });
+      }
+      if (data.velocity_km_s !== undefined) {
+        set({ asteroidVelocityKmS: data.velocity_km_s });
+      }
+    }
+  },
+
+  // Asteroid simulation state
   asteroidPos: DEFAULT_ASTEROID_POS,
   setAsteroidPos: (p) => set({ asteroidPos: p }),
   asteroidAlive: true,
   setAsteroidAlive: (alive) => set({ asteroidAlive: alive }),
   destroyAsteroid: () => {
-    // mark dead and set outcome if the run is active
     const { phase } = get();
     set({ asteroidAlive: false });
     if (phase === "running") {
-      // This is typically the LIGHT case in your logic
       set({ outcome: "light_destroyed" });
     }
   },
 
-  // Mass (you can wire this to a UI slider if you want)
-  asteroidMassKg: 4500,
+  // Asteroid physical properties
+  asteroidMassKg: DEFAULT_ASTEROID_MASS_KG,
   setAsteroidMassKg: (m) => set({ asteroidMassKg: m }),
+
+  asteroidDiameterKm: null,
+  setAsteroidDiameterKm: (d) => set({ asteroidDiameterKm: d }),
+
+  asteroidVelocityKmS: null,
+  setAsteroidVelocityKmS: (v) => set({ asteroidVelocityKmS: v }),
 
   // Deflection pipe from Missile → Asteroid (heavy case)
   asteroidDeflectRotate: null,

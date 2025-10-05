@@ -262,7 +262,7 @@ export function TestScene() {
               fontSize: "14px",
               fontWeight: "500",
             }}>
-              Missile Speed
+              Missile Speed (km/hr)
             </label>
             <input
               type="number"

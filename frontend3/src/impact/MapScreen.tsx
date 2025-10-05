@@ -34,7 +34,7 @@ export default function MapScreen() {
   {createPortal(
   <button
     type="button"
-    onClick={() => navigate("/mission")}
+    onClick={() => navigate("/missile-chooser")}
     aria-label="Go to Mission"
     style={{
       position: "fixed",
