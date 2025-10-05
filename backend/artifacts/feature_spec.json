@@ -1,0 +1,19 @@
+{
+  "numeric_features": [
+    "lat",
+    "lon",
+    "abs_lat",
+    "is_north",
+    "is_east",
+    "mag",
+    "mag2",
+    "year",
+    "month",
+    "hour",
+    "is_winter",
+    "is_summer",
+    "energy_mt",
+    "mw_equiv",
+    "y_cuberoot"
+  ]
+}

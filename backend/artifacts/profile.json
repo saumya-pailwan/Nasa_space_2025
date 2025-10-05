@@ -1,0 +1,22 @@
+{
+  "rows_raw": 3009,
+  "rows_clean": 3009,
+  "schema": {
+    "lat": "Latitude",
+    "lon": "Longitude",
+    "year": "Year",
+    "month": "Mo",
+    "day": "Dy",
+    "hour": "Hr",
+    "minute": null,
+    "second": "Sec",
+    "date": null,
+    "magnitude": "Earthquake Magnitude",
+    "depth_km": null,
+    "runup_m": "Number of Runups",
+    "wave_h_m": null,
+    "country": "Country",
+    "location": "Location Name"
+  },
+  "runup_nonnull": 3008
+}
