@@ -8,9 +8,7 @@ from typing import Dict, Tuple
 
 import requests
 from flask import Flask, request, jsonify
-# If calling from a browser app at another origin, uncomment:
-# from flask_cors import CORS
-# CORS(app)
+from flask_cors import CORS
 
 # -----------------------------------------
 # Config
@@ -19,7 +17,7 @@ NASA_API_KEY = os.getenv("NASA_API_KEY", "DEMO_KEY")
 REQ_TIMEOUT = (5, 20)  # (connect, read) seconds
 
 app = Flask(__name__)
-
+CORS(app)
 # -----------------------------------------
 # Vector helpers & constants
 # -----------------------------------------
@@ -138,60 +136,75 @@ def get_sbdb_data(name_or_id: str) -> dict:
 @lru_cache(maxsize=256)
 def get_neows_data(neo_id: str, api_key: str = NASA_API_KEY) -> dict | None:
     """
-    Fetch NEO object from NeoWs by id. Returns mean diameter (km) and a representative
-    Earth close-approach relative velocity (km/s) when available.
+    Fetch NEO object from NeoWs by id. Returns mean diameter (km) and an
+    Earth close-approach velocity/date/distance when available.
     """
     url = f"https://api.nasa.gov/neo/rest/v1/neo/{neo_id}?api_key={api_key}"
-    r = requests.get(url, timeout=REQ_TIMEOUT)
+    r = requests.get(url, timeout=15)
     if r.status_code != 200:
         return None
     data = r.json()
 
-    # Mean est. diameter (km)
-    dkm = None
+    # --- mean diameter from min/max ---
+    d_mean = None
     try:
-        km = data["estimated_diameter"]["kilometers"]
-        dkm = (float(km["estimated_diameter_min"]) + float(km["estimated_diameter_max"])) / 2.0
+        kms = (data.get("estimated_diameter") or {}).get("kilometers") or {}
+        dmin = float(kms.get("estimated_diameter_min"))
+        dmax = float(kms.get("estimated_diameter_max"))
+        d_mean = 0.5 * (dmin + dmax)
     except Exception:
         pass
 
-    # Representative relative velocity (prefer Earth approaches)
-    v = None
-    for ca in data.get("close_approach_data", []):
+    # --- choose an Earth close-approach if present ---
+    cad = data.get("close_approach_data") or []
+    earth = [c for c in cad if (c.get("orbiting_body") or "").lower() == "earth"]
+    ca = earth[0] if earth else (cad[0] if cad else None)
+
+    velocity = None
+    approach_date = None
+    orbiting_body = None
+    miss_km = None
+    miss_ld = None
+
+    if ca:
         try:
-            if ca.get("orbiting_body") == "Earth":
-                v = float(ca["relative_velocity"]["kilometers_per_second"])
-                break
+            velocity = float((ca.get("relative_velocity") or {}).get("kilometers_per_second"))
         except Exception:
             pass
-    if v is None:
+        approach_date = ca.get("close_approach_date_full") or ca.get("close_approach_date")
+        orbiting_body = ca.get("orbiting_body")
         try:
-            ca0 = data.get("close_approach_data", [])[0]
-            v = float(ca0["relative_velocity"]["kilometers_per_second"])
+            miss_km = float((ca.get("miss_distance") or {}).get("kilometers"))
         except Exception:
-            v = None
+            pass
+        try:
+            miss_ld = float((ca.get("miss_distance") or {}).get("lunar"))
+        except Exception:
+            pass
 
     return {
         "source": "NeoWs",
         "name": data.get("name"),
         "absolute_magnitude_h": data.get("absolute_magnitude_h"),
-        "estimated_diameter_km_mean": dkm,
-        "velocity_km_s": v,
+        "estimated_diameter_km_mean": d_mean,     # <— numeric
+        "velocity_km_s": velocity,                # <— numeric (km/s)
+        "approach_date": approach_date,           # <— string
+        "orbiting_body": orbiting_body,           # <— "Earth" usually
+        "miss_distance": {"kilometers": miss_km, "lunar": miss_ld},  # <— numeric
     }
 
 # -----------------------------------------
 # Impact profile
 # -----------------------------------------
 def build_impact_profile(name_or_id: str, velocity_km_s: float | None, api_key: str) -> dict:
-    """Merge SBDB + NeoWs and compute impact features."""
     sbdb = get_sbdb_data(name_or_id)
     neows = get_neows_data(name_or_id, api_key)
 
-    # Diameter priority: SBDB > NeoWs > H-derived
+    # --- diameter priority: SBDB > NeoWs mean > H-derived ---
     d_km = sbdb["diameter_km"]
-    if d_km is None and neows and neows["estimated_diameter_km_mean"]:
-        d_km = neows["estimated_diameter_km_mean"]
-    if d_km is None and neows and neows["absolute_magnitude_h"] is not None:
+    if d_km is None and neows and neows.get("estimated_diameter_km_mean") is not None:  # UPDATED
+        d_km = float(neows["estimated_diameter_km_mean"])
+    if d_km is None and neows and neows.get("absolute_magnitude_h") is not None:
         d_km = diameter_from_H(float(neows["absolute_magnitude_h"]), pV=0.14)
     if d_km is None:
         raise ValueError("No diameter available from SBDB/NeoWs; cannot compute impact properties.")
@@ -210,7 +223,7 @@ def build_impact_profile(name_or_id: str, velocity_km_s: float | None, api_key: 
         "input": {
             "query": name_or_id,
             "velocity_km_s": vel,
-            "albedo_assumed_if_H_used": 0.14 if (sbdb["diameter_km"] is None and neows and neows["estimated_diameter_km_mean"] is None) else None,
+            "albedo_assumed_if_H_used": 0.14 if (sbdb["diameter_km"] is None and (neows is None or neows.get("estimated_diameter_km_mean") is None)) else None,  # UPDATED
             "api_key_used": (api_key != "DEMO_KEY"),
         },
         "physical": {
@@ -232,13 +245,25 @@ def build_impact_profile(name_or_id: str, velocity_km_s: float | None, api_key: 
         "sources": {"sbdb": True, "neows": neows is not None},
     }
 
-    # Top-level mirrors (as requested)
+    # --- Top-level mirrors (NEW) for the UI ---
+    result["name"] = (neows.get("name") if neows else None) or name_or_id   # NEW
+    result["diameter_km"] = float(d_km)                                      # NEW
+    result["density_kg_m3"] = rho
     result["mass_kg"] = mass
     result["velocity_km_s"] = vel
-    result["density_kg_m3"] = rho
     result["energy_J"] = energy["E_J"]
     result["energy_MtTNT"] = energy["E_MtTNT"]
     result["crater_diameter_km"] = crater_m / 1000.0
+
+    if neows:
+        result["approach"] = neows.get("approach_date")                      # NEW
+        # expose numeric LD distance at top-level (NEW)
+        try:
+            result["distance_ld"] = float((neows.get("miss_distance") or {}).get("lunar"))
+        except Exception:
+            result["distance_ld"] = None
+        result["orbiting_body"] = neows.get("orbiting_body")
+        result["neo_display_name"] = neows.get("name")
 
     return result
 
@@ -1135,6 +1160,5 @@ def impact_point():
 # Entrypoint
 # -----------------------------------------
 if __name__ == "__main__":
-    # Change port by setting PORT env, e.g. PORT=5050 python app.py
-    port = int(os.getenv("PORT", "5000"))
+    port = int(os.getenv("PORT", "5050"))
     app.run(host="0.0.0.0", port=port, debug=True)
