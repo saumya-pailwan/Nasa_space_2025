@@ -108,8 +108,12 @@ export function MissionScene() {
   const EARTH_SCALE = 0.1;
 
   const phase = useSimStore((s) => s.phase);
-  const launchNonce = useSimStore((s) => s.launchNonce);
-  const rocket = useSimStore((s) => s.rocket);
+  const outcome = useSimStore((s) => s.outcome);
+  const launchNonce = useSimStore((s) => s.launchNonce); // ← FIX: read it
+
+  const startRun = useSimStore((s) => s.startRun);
+  const canShowPlay = phase !== "running" && outcome !== "pending";
+
 
   return (
     <Canvas
@@ -139,16 +143,20 @@ export function MissionScene() {
 
         {/* Mount missile only while running */}
         {phase === "running" && (
-          <Missile
-            key={`m-${launchNonce}`}
-            start={[-0.8, 0.1, 0]}
-            dir={[1, 0, 0]}
-            speed={rocket.speed}
-            onExplode={(_where) => {
-              useSimStore.getState().endRun();
-            }}
-          />
+        <Missile
+        key={`m-${launchNonce}`}
+        start={[-0.8, 0.1, 0]}
+        radius={0.02}
+        asteroidRadius={0.03}
+        bounds={50}
+        onExplode={(where) => {
+          console.log("Impact at", where);
+          // Do not endRun() here—Asteroid will end the run on earth_hit or escaped
+        }}
+      
+        />
         )}
+
       </RotatingGroup>
 
       <OrbitControls

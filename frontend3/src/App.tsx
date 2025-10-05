@@ -31,6 +31,7 @@
 
 import React from "react";
 import { Routes, Route } from "react-router-dom";
+
 import Home from "./pages/Home";
 import Mission from "./pages/Mission";
 
@@ -39,6 +40,8 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/mission" element={<Mission />} />
+      {/* <Route path="*" element={<Navigate to="/mission" replace />} /> */}
+
     </Routes>
   );
 }

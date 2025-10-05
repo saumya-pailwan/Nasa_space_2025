@@ -1,113 +1,162 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+// src/components/Missile.tsx
+import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { useSimStore } from "./../state/simStore";
+ import { useSimStore } from "./../state/simStore";
+
+type Vec3 = [number, number, number];
 
 type MissileProps = {
-  /** World-space launch position */
-  start: [number, number, number];
-  /** Initial aim (used only at launch to initialize heading) */
-  dir: [number, number, number];
-  /** Units per second */
-  speed?: number;
-  /** Missile collision radius */
+  start: Vec3;
+  /** missile collision radius */
   radius?: number;
-  /** Asteroid visual radius (must match asteroid’s) */
+  /** asteroid visual/collision radius */
   asteroidRadius?: number;
-  /** Max turn rate (radians/sec) for homing */
-  turnRate?: number;
-  /** Called once on collision */
-  onExplode?: (where: [number, number, number]) => void;
+  /** auto-terminate if the missile leaves a big box (scene units) */
+  bounds?: number;
+  /** optional visual/sound hook */
+  onExplode?: (where: Vec3) => void;
 };
+
+/** Small helper to clamp dt to avoid tunneling on slow frames */
+function clampDt(dt: number, max = 1 / 20) {
+  return Math.min(dt, max);
+}
 
 export function Missile({
   start,
-  dir,
-  speed = 2.0,
   radius = 0.02,
   asteroidRadius = 0.03,
-  turnRate = THREE.MathUtils.degToRad(120), // how sharply we can turn
+  bounds = 50,
   onExplode,
 }: MissileProps) {
+  // ====== GLOBAL SIM STATE ======
+  const rocket = useSimStore((s: any) => s.rocket); // { speed, angleDeg }
+  const asteroidPosArr = useSimStore((s: any) => s.asteroidPos) as Vec3;
+  const asteroidAlive = useSimStore((s: any) => s.asteroidAlive) as boolean;
+  const asteroidMassKg = useSimStore((s: any) => s.asteroidMassKg) as number | undefined;
+  const destroyAsteroid = useSimStore((s: any) => s.destroyAsteroid) as (() => void) | undefined;
+
+  // Deflection request for heavy case
+  const setAsteroidDeflectRotate = useSimStore(
+    (s: any) => s.setAsteroidDeflectRotate
+  ) as ((v: { angleDeg: number; axis?: Vec3 } | null) => void) | undefined;
+
+  // ====== LOCAL STATE ======
   const missileRef = useRef<THREE.Group>(null!);
-  const pos = useRef(new THREE.Vector3(...start));
-  const heading = useRef(new THREE.Vector3(...dir).normalize()); // mutable aim
+  const pos = useRef<THREE.Vector3>(new THREE.Vector3(...start));
+  const vel = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 0));
+  const [visible, setVisible] = useState(true);
 
-  const asteroidPosArr = useSimStore((s) => s.asteroidPos);
-  const asteroidAlive = useSimStore((s) => s.asteroidAlive);
-  const destroyAsteroid = useSimStore((s) => s.destroyAsteroid);
-
-  const [alive, setAlive] = useState(true);
-
-  // Re-init when props.start changes
+  // Initialize position on mount
   useEffect(() => {
     pos.current.set(start[0], start[1], start[2]);
+    vel.current.set(0, 0, 0);
+    if (missileRef.current) {
+      missileRef.current.position.copy(pos.current);
+      missileRef.current.visible = true;
+    }
+    setVisible(true);
   }, [start[0], start[1], start[2]]);
 
-  // Re-init heading when dir changes
-  useEffect(() => {
-    heading.current.set(dir[0], dir[1], dir[2]).normalize();
-  }, [dir[0], dir[1], dir[2]]);
+  useFrame((_, rawDt) => {
+    if (!visible) return;
+    const dt = clampDt(rawDt);
 
-  useFrame((_state, delta) => {
-    if (!missileRef.current) return;
+    // If asteroid is gone and this is the "light" aftermath, continue straight using last velocity
+    const target = new THREE.Vector3(...asteroidPosArr);
+    const toTarget = target.clone().sub(pos.current);
+    const distance = toTarget.length();
 
-    if (alive) {
-      // === GUIDANCE ALGORITHM — PURE PURSUIT (easy & effective) ===
-      // Feel free to replace the block below with your own algorithm.
-      if (asteroidAlive) {
-        const aPos = new THREE.Vector3(...asteroidPosArr); // current asteroid position
-        const toTarget = aPos.clone().sub(pos.current);
-        const dist = toTarget.length();
+    // Simple guidance: steer toward asteroid while it's alive
+    const seekDir = toTarget.normalize();
+    const speed = Math.max(0.1, Number(rocket?.speed ?? 1)); // guard
+    // First-order steering — blend current vel toward seekDir * speed
+    const desired = seekDir.multiplyScalar(speed);
+    vel.current.lerp(desired, 0.2); // smooth turn
 
-        if (dist > 1e-6) {
-          const desired = toTarget.normalize();
+    // Integrate
+    pos.current.addScaledVector(vel.current, dt);
 
-          // Limit how fast we can turn toward the desired direction:
-          // compute the angle between current heading and desired, clamp by turnRate*delta
-          const angle = Math.acos(THREE.MathUtils.clamp(heading.current.dot(desired), -1, 1));
-          if (angle > 1e-5) {
-            const t = Math.min(1, (turnRate * delta) / angle); // fraction of the angle we can close this frame
-            heading.current.lerp(desired, t).normalize();
+    // Orient missile to its velocity
+    if (vel.current.lengthSq() > 1e-5) {
+      const lookAt = pos.current.clone().add(vel.current);
+      missileRef.current.lookAt(lookAt);
+    }
+    missileRef.current.position.copy(pos.current);
+
+    // ===== Bounds fail-safe =====
+    const { x, y, z } = pos.current;
+    if (Math.abs(x) > bounds || Math.abs(y) > bounds || Math.abs(z) > bounds) {
+      setVisible(false);
+      if (missileRef.current) missileRef.current.visible = false;
+      return;
+    }
+
+    // ===== Collision with asteroid (only if asteroid is alive) =====
+    if (asteroidAlive) {
+      const hitDist = (radius ?? 0.02) + (asteroidRadius ?? 0.03);
+      if (distance <= hitDist) {
+        // Impact point for FX
+        const impact: Vec3 = [pos.current.x, pos.current.y, pos.current.z];
+
+        const mass = Number(asteroidMassKg ?? 0);
+        const approachDir = toTarget.lengthSq() > 0 ? toTarget.clone().normalize() : vel.current.clone().normalize();
+
+        if (mass > 3000) {
+          // ===== HEAVY: Rocket disappears. Asteroid deviates if angleDeg != 0, otherwise continues straight toward Earth. =====
+          setVisible(false);
+          if (missileRef.current) missileRef.current.visible = false;
+
+          // Build a lateral rotation axis ⟂ to approach direction for asteroid to rotate about
+          const up = new THREE.Vector3(0, 1, 0);
+          let axis = new THREE.Vector3().crossVectors(approachDir, up);
+          if (axis.lengthSq() < 1e-8) axis.set(1, 0, 0);
+          else axis.normalize();
+
+          const angleDeg = Number(rocket?.angleDeg ?? 0);
+          if (Math.abs(angleDeg) > 0.001) {
+            // Any non-zero angle => request asteroid deviation.
+            setAsteroidDeflectRotate &&
+              setAsteroidDeflectRotate({
+                angleDeg,
+                axis: [axis.x, axis.y, axis.z],
+              });
+          } else {
+            // Zero angle => do nothing; asteroid continues on its current trajectory.
           }
-        }
-      }
-      // === END GUIDANCE BLOCK ===
 
-      // advance missile forward along its heading
-      pos.current.addScaledVector(heading.current, speed * delta);
-
-      // collision with asteroid (sphere–sphere)
-      if (asteroidAlive) {
-        const aPos = new THREE.Vector3(...asteroidPosArr);
-        const dist = pos.current.distanceTo(aPos);
-        if (dist <= (radius + asteroidRadius)) {
-          setAlive(false);
-          destroyAsteroid();
-          onExplode?.([pos.current.x, pos.current.y, pos.current.z]);
+          // Optional FX hook
+          onExplode?.(impact);
+          return;
+        } else {
+            setVisible(false);
+          // ===== LIGHT: Asteroid disappears; rocket continues. =====
+          destroyAsteroid && destroyAsteroid();
+          // Optional FX hook
+          onExplode?.(impact);
+          // IMPORTANT: do NOT hide rocket or end the run. Let it keep flying.
+          return;
         }
       }
     }
-
-    // update world transform
-    missileRef.current.position.copy(pos.current);
-
-    // orient the missile mesh to face its heading
-    const lookAt = pos.current.clone().add(heading.current);
-    missileRef.current.lookAt(lookAt);
   });
 
+  if (!visible) return null;
+
   return (
-    <group ref={missileRef} visible={alive}>
-      {/* simple missile shape aligned with local +Z after lookAt */}
+    <group ref={missileRef}>
+      {/* simple missile shape aligned with +Z after lookAt */}
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.01, 0.01, 0.12, 12]} />
-        <meshStandardMaterial color="#d0e7ff" roughness={0.4} metalness={0.1} />
+        <meshStandardMaterial color={"#d0e7ff"} roughness={0.4} metalness={0.1} />
       </mesh>
       <mesh position={[0, 0.07, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <coneGeometry args={[0.02, 0.05, 12]} />
-        <meshStandardMaterial color="#b0c9ff" roughness={0.6} />
+        <meshStandardMaterial color={"#b0c9ff"} roughness={0.6} />
       </mesh>
     </group>
   );
 }
+
+export default Missile;
