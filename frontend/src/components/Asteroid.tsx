@@ -11,19 +11,19 @@ type AsteroidProps = {
   earthRadius: number;
   earthPosition?: Vec3;
   paused?: boolean;
+  asteroidMassKg?: number; // NEW: allow override from parent
 };
 
 export function Asteroid({
   earthRadius,
   earthPosition = [0, 0, 0],
   paused = false,
+  asteroidMassKg, // NEW
 }: AsteroidProps) {
   const asteroidAlive = useSimStore((s) => s.asteroidAlive);
   const setAsteroidPos = useSimStore((s) => s.setAsteroidPos);
   const destroyAsteroidInStore = useSimStore((s) => s.destroyAsteroid);
-
   const setAsteroidMassKg = useSimStore((s) => s.setAsteroidMassKg);
-
 
   const deflectRotate = useSimStore((s) => s.asteroidDeflectRotate);
   const clearDeflectRotate = useSimStore((s) => s.clearAsteroidDeflectRotate);
@@ -43,7 +43,7 @@ export function Asteroid({
   const BLAST_DURATION = 0.4;
   const ESCAPE_BOUNDS = 60;
 
-  const ASTEROID_MASS_KG = 33;
+  const DEFAULT_MASS_KG = 33; // fallback if no data provided
 
   const pos = useRef(new THREE.Vector3(...START_POS));
   const vel = useRef(new THREE.Vector3());
@@ -59,7 +59,7 @@ export function Asteroid({
   // Map user angle to a small yaw; smooth growth with asymptotic cap
   function mapAngleToSmallDeflection(angleDeg: number): number {
     const A50 = 600;   // angle where we reach ~50% of D_MAX
-    const D_MAX = 10;  // max yaw we’ll ever apply (deg)
+    const D_MAX = 10;  // max yaw we'll ever apply (deg)
     const mag = Math.abs(angleDeg);
     const k = Math.log(2) / A50;
     const yaw = D_MAX * (1 - Math.exp(-k * mag));
@@ -83,9 +83,11 @@ export function Asteroid({
     return Math.max(0, extra);
   }
 
+  // NEW: Use provided mass or fallback to default
   useEffect(() => {
-    setAsteroidMassKg(ASTEROID_MASS_KG);
-  }, [setAsteroidMassKg]);
+    const massToUse = asteroidMassKg ?? DEFAULT_MASS_KG;
+    setAsteroidMassKg(massToUse);
+  }, [asteroidMassKg, setAsteroidMassKg]);
 
   useEffect(() => {
     const toEarth = new THREE.Vector3()
@@ -105,50 +107,45 @@ export function Asteroid({
     if (!asteroidAlive || paused) return;
 
     // One-shot deflections
-    
-
     if (deflectRotate !== null) {
-        // RAW user angle from Mission Control
-        const userAngleDeg = deflectRotate.angleDeg;
-      
-        // Current geometry
-        const rVec = earthCenter.clone().sub(pos.current); // to Earth center
-        const vhat = vel.current.clone().normalize();
-      
-        // Prefer provided axis from missile; fallback to computed
-        let axis: THREE.Vector3;
-        if (deflectRotate.axis) {
-          axis = new THREE.Vector3().fromArray(deflectRotate.axis).normalize();
-          if (!isFinite(axis.x) || axis.lengthSq() < 1e-10) axis = new THREE.Vector3(0, 1, 0);
-        } else {
-          axis = new THREE.Vector3().crossVectors(vhat, rVec).normalize();
-          if (!isFinite(axis.x) || axis.lengthSq() < 1e-10) axis = new THREE.Vector3(0, 1, 0);
-        }
-      
-        // Base small yaw from user angle (smooth, monotonic)
-        let yawDeg = mapAngleToSmallDeflection(userAngleDeg);
-      
-        // 👉 NEW: angle > 10° guarantees a miss (in vacuum) with extra safety margin
-        const CUTOFF_DEG = 10; // was 40
-        if (Math.abs(userAngleDeg) >= CUTOFF_DEG) {
-          const Rsafe = earthRadius + ASTER_RAD + HIT_TOL; // slightly safer than surface
-          const extraRad = yawNeededToMissInVacuum(vhat, rVec, Rsafe);
-          const extraDeg = THREE.MathUtils.radToDeg(extraRad);
-      
-          // add 2° extra cushion to counter gravity curving it back
-          const cushionDeg = 6;
-          const yawAbs = Math.max(Math.abs(yawDeg), extraDeg + cushionDeg);
-          yawDeg = Math.sign(userAngleDeg || 1) * yawAbs;
-        }
-      
-        // Apply rotation once
-        
-        vel.current.applyMatrix4(new THREE.Matrix4().makeRotationAxis(axis, THREE.MathUtils.degToRad(yawDeg)));
-
-      
-        clearDeflectRotate();
+      // RAW user angle from Mission Control
+      const userAngleDeg = deflectRotate.angleDeg;
+    
+      // Current geometry
+      const rVec = earthCenter.clone().sub(pos.current); // to Earth center
+      const vhat = vel.current.clone().normalize();
+    
+      // Prefer provided axis from missile; fallback to computed
+      let axis: THREE.Vector3;
+      if (deflectRotate.axis) {
+        axis = new THREE.Vector3().fromArray(deflectRotate.axis).normalize();
+        if (!isFinite(axis.x) || axis.lengthSq() < 1e-10) axis = new THREE.Vector3(0, 1, 0);
+      } else {
+        axis = new THREE.Vector3().crossVectors(vhat, rVec).normalize();
+        if (!isFinite(axis.x) || axis.lengthSq() < 1e-10) axis = new THREE.Vector3(0, 1, 0);
       }
-      
+    
+      // Base small yaw from user angle (smooth, monotonic)
+      let yawDeg = mapAngleToSmallDeflection(userAngleDeg);
+    
+      // NEW: angle > 10° guarantees a miss (in vacuum) with extra safety margin
+      const CUTOFF_DEG = 10;
+      if (Math.abs(userAngleDeg) >= CUTOFF_DEG) {
+        const Rsafe = earthRadius + ASTER_RAD + HIT_TOL; // slightly safer than surface
+        const extraRad = yawNeededToMissInVacuum(vhat, rVec, Rsafe);
+        const extraDeg = THREE.MathUtils.radToDeg(extraRad);
+    
+        // add 6° extra cushion to counter gravity curving it back
+        const cushionDeg = 6;
+        const yawAbs = Math.max(Math.abs(yawDeg), extraDeg + cushionDeg);
+        yawDeg = Math.sign(userAngleDeg || 1) * yawAbs;
+      }
+    
+      // Apply rotation once
+      vel.current.applyMatrix4(new THREE.Matrix4().makeRotationAxis(axis, THREE.MathUtils.degToRad(yawDeg)));
+    
+      clearDeflectRotate();
+    }
 
     if (!hit) {
       // gravity pull
