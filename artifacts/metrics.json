@@ -1,0 +1,65 @@
+{
+  "n_train": 2406,
+  "n_val": 602,
+  "features": [
+    "lat",
+    "lon",
+    "abs_lat",
+    "is_north",
+    "is_east",
+    "mag",
+    "mag2",
+    "year",
+    "month",
+    "hour",
+    "is_winter",
+    "is_summer",
+    "energy_mt",
+    "mw_equiv",
+    "y_cuberoot"
+  ],
+  "regression": {
+    "MAE": 5.601822297808475,
+    "RMSE": 10.918951795483784,
+    "R2": 0.3253742777872054
+  },
+  "classification": {
+    "report": {
+      "0": {
+        "precision": 0.4375,
+        "recall": 0.059322033898305086,
+        "f1-score": 0.1044776119402985,
+        "support": 118.0
+      },
+      "1": {
+        "precision": 0.6072961373390557,
+        "recall": 0.8680981595092024,
+        "f1-score": 0.7146464646464646,
+        "support": 326.0
+      },
+      "2": {
+        "precision": 0.6583333333333333,
+        "recall": 0.5,
+        "f1-score": 0.5683453237410072,
+        "support": 158.0
+      },
+      "accuracy": 0.6129568106312292,
+      "macro avg": {
+        "precision": 0.567709823557463,
+        "recall": 0.4758067311358358,
+        "f1-score": 0.4624898001092568,
+        "support": 602.0
+      },
+      "weighted avg": {
+        "precision": 0.5874089824571409,
+        "recall": 0.6129568106312292,
+        "f1-score": 0.5566472871009666,
+        "support": 602.0
+      }
+    },
+    "thresholds_m": [
+      1.0,
+      3.0
+    ]
+  }
+}
